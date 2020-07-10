@@ -301,6 +301,10 @@ code, pre {
   font-size: 0.85rem;
   font-family: "Source Code Pro", monospace, "Microsoft YaHei"; }
 
+.hljs {
+  line-height: 1.5rem;
+  padding-top: 0; }
+
 figure.highlight {
   padding: 0;
   width: 100%;

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html class="has-navbar-fixed-top">
+<head>
+    <meta charset="utf-8">
+<title>Go程序启动过程 - OverStack.Me</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/outdated-browser/1.1.5/outdatedbrowser.min.css">
+
+
+
+
+<meta name="description" content="OverStack.Me 的博客">
+
+
+
+<meta name="keywords" content="golang,算法,数据库,分布式,高可用">
+
+
+
+    <meta name="description" content="&amp;#x672C;&amp;#x6587;&amp;#x57FA;&amp;#x4E8E; go version go1.14.3 darwin&#x2F;amd64&amp;#xFF0C; &amp;#x4E0D;&amp;#x540C;&amp;#x64CD;&amp;#x4F5C;&amp;#x7CFB;&amp;#x7EDF;&amp;#x542F;&amp;#x52A8;&amp;#x6D41;&amp;#x7A0B;&amp;#x6709;&amp;#x5DEE;&amp;#x5F02;  &amp;#x5165;&amp;#x53E3;&amp;#x">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go程序启动过程">
+<meta property="og:url" content="https://overstack.me/202007/go-program-startup-process.html">
+<meta property="og:site_name" content="OverStack.Me">
+<meta property="og:description" content="&amp;#x672C;&amp;#x6587;&amp;#x57FA;&amp;#x4E8E; go version go1.14.3 darwin&#x2F;amd64&amp;#xFF0C; &amp;#x4E0D;&amp;#x540C;&amp;#x64CD;&amp;#x4F5C;&amp;#x7CFB;&amp;#x7EDF;&amp;#x542F;&amp;#x52A8;&amp;#x6D41;&amp;#x7A0B;&amp;#x6709;&amp;#x5DEE;&amp;#x5F02;  &amp;#x5165;&amp;#x53E3;&amp;#x">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-07-10T02:43:26.000Z">
+<meta property="article:modified_time" content="2020-07-10T02:55:55.139Z">
+<meta property="article:author" content="OverStack.Me">
+<meta property="article:tag" content="golang">
+<meta name="twitter:card" content="summary">
+
+
+
+
+
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Ovo|Source+Code+Pro">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bulma/0.6.2/css/bulma.min.css">
+
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/lightgallery/1.6.8/css/lightgallery.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.6.5/css/justifiedGallery.min.css">
+
+
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-light.min.css">
+
+
+<link rel="stylesheet" href="/css/style.css">
+
+
+<script defer src="//use.fontawesome.com/releases/v5.0.8/js/all.js"></script>
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+<body>
+    
+<nav class="navbar is-transparent is-fixed-top navbar-main" role="navigation" aria-label="main navigation">
+    <div class="container">
+        <div class="navbar-brand">
+            <a class="navbar-item navbar-logo" href="/">
+                
+                    
+                    OverStack.Me
+                    
+                
+            </a>
+            <div class="navbar-burger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        
+        <div class="navbar-menu navbar-start">
+            
+            <a class="navbar-item "
+               href="/">首页</a>
+            
+            <a class="navbar-item "
+               href="/archives">归档</a>
+            
+            <a class="navbar-item "
+               href="/about">关于</a>
+            
+        </div>
+        
+        <div class="navbar-menu navbar-end">
+            
+            <a class="navbar-item search" title="搜索" href="javascript:;">
+                <i class="fas fa-search"></i>
+            </a>
+            
+            
+            
+            <a class="navbar-item" title="GitHub" href="https://github.com/overstackme" target="_blank" rel="noopener">
+                
+                <i class="fab fa-github"></i>
+                
+            </a>
+               
+            
+        </div>
+    </div>
+</nav>
+
+    <section class="section">
+    <div class="container">
+    <article class="article content gallery" itemscope itemprop="blogPost">
+    <h1 class="article-title is-size-3 is-size-4-mobile" itemprop="name">
+        
+            Go程序启动过程
+        
+    </h1>
+    <div class="article-meta columns is-variable is-1 is-multiline is-mobile is-size-7-mobile">
+        <span class="column is-narrow">
+            <time datetime="2020-07-10T02:43:26.000Z" itemprop="datePublished">7月 10 2020</time>
+        </span>
+        
+        <span class="column is-narrow article-category">
+            <i class="far fa-folder"></i>
+            <a class="article-category-link" href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/">编程语言</a>
+        </span>
+        
+        
+        <span class="column is-narrow">
+            
+            
+            7 分钟 读完 (约 1055 字)
+        </span>
+        
+    </div>
+    <div class="article-entry is-size-6-mobile" itemprop="articleBody">
+    
+        <html><head></head><body><blockquote>
+<p>&#x672C;&#x6587;&#x57FA;&#x4E8E; <code>go version go1.14.3 darwin/amd64</code>&#xFF0C; &#x4E0D;&#x540C;&#x64CD;&#x4F5C;&#x7CFB;&#x7EDF;&#x542F;&#x52A8;&#x6D41;&#x7A0B;&#x6709;&#x5DEE;&#x5F02;</p>
+</blockquote>
+<h3 id="&#x5165;&#x53E3;&#x51FD;&#x6570;"><a href="#&#x5165;&#x53E3;&#x51FD;&#x6570;" class="headerlink" title="&#x5165;&#x53E3;&#x51FD;&#x6570;"></a>&#x5165;&#x53E3;&#x51FD;&#x6570;</h3><p>Go&#x8BED;&#x8A00;&#x542F;&#x52A8;&#x65F6;&#x9996;&#x5148;&#x9700;&#x8981;&#x521D;&#x59CB;&#x5316;&#x81EA;&#x5DF1;&#x7684;&#x8FD0;&#x884C;&#x65F6;(runtime), &#x5165;&#x53E3;&#x6587;&#x4EF6;&#x4E3A; <code>src/runtime/rt0_darwin_amd64.s</code></p>
+<p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs plain">TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8<br>    JMP	_rt0_amd64(SB)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<a id="more"></a>
+
+<p>&#x7D27;&#x63A5;&#x7740;&#xFF0C;&#x8DF3;&#x8F6C;&#x5230; <code>src/runtime/asm_amd64.s</code> &#x4E2D;&#x7684; <code>_rt0_amd64</code> &#x51FD;&#x6570;.</p>
+<p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs plain">TEXT _rt0_amd64(SB),NOSPLIT,$-8<br>    MOVQ	0(SP), DI	// argc<br>    LEAQ	8(SP), SI	// argv<br>    JMP	runtime&#xB7;rt0_go(SB)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p>&#x51FD;&#x6570;&#x524D;&#x4E24;&#x884C;&#x6307;&#x4EE4;&#x5C06; <code>argc</code>, <code>argc</code> &#x4E24;&#x4E2A;&#x64CD;&#x4F5C;&#x7CFB;&#x7EDF;&#x4F20;&#x5165;&#x7684;&#x53C2;&#x6570;&#x5206;&#x522B;&#x5B58;&#x50A8;&#x5230;&#x4E86; <code>DI</code>, <code>SI</code> &#x5BC4;&#x5B58;&#x5668;&#x4E2D;&#xFF0C;&#x7136;&#x540E;&#x8DF3;&#x8F6C;&#x5230; <code>runtime&#xB7;rt0_go</code> &#x4E2D;&#x7EE7;&#x7EED;&#x6267;&#x884C;.</p>
+<h3 id="&#x521D;&#x59CB;&#x5316;&#x51FD;&#x6570;"><a href="#&#x521D;&#x59CB;&#x5316;&#x51FD;&#x6570;" class="headerlink" title="&#x521D;&#x59CB;&#x5316;&#x51FD;&#x6570;"></a>&#x521D;&#x59CB;&#x5316;&#x51FD;&#x6570;</h3><p><code>runtime&#xB7;rt0_go</code> &#x51FD;&#x6570;&#x5B8C;&#x6210;&#x4E86;go&#x542F;&#x52A8;&#x65F6;&#x6240;&#x9700;&#x7684;&#x6240;&#x6709;&#x521D;&#x59CB;&#x5316;&#x5DE5;&#x4F5C;</p>
+<h4 id="&#x53C2;&#x6570;&#x521D;&#x59CB;&#x5316;"><a href="#&#x53C2;&#x6570;&#x521D;&#x59CB;&#x5316;" class="headerlink" title="&#x53C2;&#x6570;&#x521D;&#x59CB;&#x5316;"></a>&#x53C2;&#x6570;&#x521D;&#x59CB;&#x5316;</h4><p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs plain">// copy arguments forward on an even stack<br>MOVQ	DI, AX		// argc<br>MOVQ	SI, BX		// argv<br>SUBQ	$(4*8+7), SP		// 2args 2auto<br>ANDQ	$~15, SP<br>MOVQ	AX, 16(SP)<br>MOVQ	BX, 24(SP)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p>&#x5C06;&#x5B58;&#x50A8;&#x7684;<code>argc</code>, <code>argv</code> &#x53C2;&#x6570;&#x5206;&#x522B;&#x653E;&#x5230; <code>AX</code>, <code>BX</code> &#x5BC4;&#x5B58;&#x5668;&#x4E2D;&#xFF0C;&#x540C;&#x65F6;&#x51CF;&#x5C0F;&#x6808;&#x6307;&#x9488;&#x4E14;&#x5C06;&#x6808;&#x6307;&#x9488;&#x8FDB;&#x884C;16&#x4F4D;&#x5BF9;&#x9F50;, &#x6700;&#x540E;&#x5C06;&#x53C2;&#x6570;&#x4ECE;&#x5BC4;&#x5B58;&#x5668;&#x653E;&#x56DE;&#x6808;&#x4E2D;.</p>
+<h4 id="&#x521D;&#x59CB;&#x5316;g0&#x6808;&#x4FE1;&#x606F;"><a href="#&#x521D;&#x59CB;&#x5316;g0&#x6808;&#x4FE1;&#x606F;" class="headerlink" title="&#x521D;&#x59CB;&#x5316;g0&#x6808;&#x4FE1;&#x606F;"></a>&#x521D;&#x59CB;&#x5316;g0&#x6808;&#x4FE1;&#x606F;</h4><p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs plain">// create istack out of the given (operating system) stack.<br>// _cgo_init may update stackguard.<br>MOVQ	$runtime&#xB7;g0(SB), DI<br>LEAQ	(-64*1024+104)(SP), BX<br>MOVQ	BX, g_stackguard0(DI)<br>MOVQ	BX, g_stackguard1(DI)<br>MOVQ	BX, (g_stack+stack_lo)(DI)<br>MOVQ	SP, (g_stack+stack_hi)(DI)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p>&#x6B64;&#x90E8;&#x5206;&#x7A0B;&#x5E8F;&#x9996;&#x5148;&#x5C06;&#x5168;&#x5C40;&#x53D8;&#x91CF; <code>g0</code> &#x5730;&#x5740;&#x5B58;&#x5165;&#x5BC4;&#x5B58;&#x5668; <code>DI</code> &#x4E2D;, &#x7136;&#x540E;&#x5728;&#x7CFB;&#x7EDF;&#x7EBF;&#x7A0B;&#x7684;&#x6808;&#x4E2D;&#x4E3A; <code>g0</code> &#x7533;&#x8BF7;&#x6808;&#x7A7A;&#x95F4;&#xFF08;64*1024 + 104&#xFF09;&#xFF0C;&#x521D;&#x59CB;&#x5316;g0&#x7684;&#x6808;&#x4FE1;&#x606F;&#x548C;stackgard.</p>
+<h4 id="CPU&#x4FE1;&#x606F;&#x76F8;&#x5173;"><a href="#CPU&#x4FE1;&#x606F;&#x76F8;&#x5173;" class="headerlink" title="CPU&#x4FE1;&#x606F;&#x76F8;&#x5173;"></a>CPU&#x4FE1;&#x606F;&#x76F8;&#x5173;</h4><p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs plain">// find out information about the processor we&apos;re on<br>MOVL	$0, AX<br>CPUID<br>MOVL	AX, SI<br>CMPL	AX, $0<br>JE	nocpuinfo<br>(...)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p>&#x8FD9;&#x6BB5;&#x4EE3;&#x7801;&#x4E3B;&#x8981;&#x662F;&#x4E0E;CPU&#x76F8;&#x5173;&#x7684;&#x67E5;&#x627E;&#x548C;&#x521D;&#x59CB;&#x5316;</p>
+<h4 id="TLS-&#x4E0E;-m0-g0"><a href="#TLS-&#x4E0E;-m0-g0" class="headerlink" title="TLS &#x4E0E; m0 g0"></a>TLS &#x4E0E; m0 g0</h4><p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs plain">LEAQ	runtime&#xB7;m0+m_tls(SB), DI<br>CALL	runtime&#xB7;settls(SB)<br><br>// store through it, to make sure it works<br>get_tls(BX)<br>MOVQ	$0x123, g(BX)<br>MOVQ	runtime&#xB7;m0+m_tls(SB), AX<br>CMPQ	AX, $0x123<br>JEQ 2(PC)<br>CALL	runtime&#xB7;abort(SB)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p>&#x8C03;&#x7528; <code>runtime&#xB7;settls</code> &#x51FD;&#x6570;&#x6765;&#x521D;&#x59CB;&#x5316;&#x4E3B;&#x7EBF;&#x7A0B;&#x7684;TLS&#xFF0C;&#x76EE;&#x7684;&#x662F;&#x628A; <code>m0</code> &#x4E0E;&#x4E3B;&#x7EBF;&#x7A0B;&#x8FDB;&#x884C;&#x5173;&#x8054;&#xFF0C;&#x5E76;&#x68C0;&#x67E5;&#x662F;&#x5426;&#x6B63;&#x5E38;&#x6267;&#x884C;.</p>
+<p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs plain">get_tls(BX)<br>LEAQ	runtime&#xB7;g0(SB), CX<br>MOVQ	CX, g(BX) // &#x5C06;g0&#x5730;&#x5740;&#x4FDD;&#x5B58;&#x5230;TLS&#x4E2D;<br>LEAQ	runtime&#xB7;m0(SB), AX<br><br>// save m-&gt;g0 = g0<br>MOVQ	CX, m_g0(AX)<br>// save m0 to g0-&gt;m<br>MOVQ	AX, g_m(CX)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p>&#x5C06;TLS&#x5730;&#x5740;&#x52A0;&#x8F7D;&#x5230; <code>BX</code> &#x5BC4;&#x5B58;&#x5668;&#x4E2D;, &#x5C06; <code>g0</code>  &#x7684;&#x5730;&#x5740;&#x4FDD;&#x5B58;&#x5230;TLS&#x4E2D;, &#x4E5F;&#x5C31;&#x662F; <code>m0.tls[0]=&amp;g0</code></p>
+<p>&#x901A;&#x8FC7; <code>m0.g0 = &amp;g0</code>, <code>g0.m = &amp;m0</code> &#x5C06; <code>m0</code> &#x4E0E; <code>g0</code> &#x8FDB;&#x884C;&#x5173;&#x8054;, &#x8FD9;&#x6837;&#x4E4B;&#x540E;&#x5728;&#x4E3B;&#x7EBF;&#x7A0B;&#x4E2D;&#x901A;&#x8FC7; <code>get_tls</code> &#x5C31;&#x53EF;&#x4EE5;&#x627E;&#x5230; <code>g0</code>, &#x901A;&#x8FC7; <code>g0.m</code> &#x5C31;&#x53EF;&#x4EE5;&#x627E;&#x5230; <code>m0</code> , &#x8FD9;&#x6837;&#x5C31;&#x5B9E;&#x73B0;&#x4E86; <code>m0</code> &#x3001; <code>g0</code> &#x4E0E;&#x4E3B;&#x7EBF;&#x7A0B;&#x4E4B;&#x95F4;&#x7684;&#x5173;&#x8054;.</p>
+<h4 id="&#x8FD0;&#x884C;&#x65F6;&#x7C7B;&#x578B;&#x68C0;&#x67E5;"><a href="#&#x8FD0;&#x884C;&#x65F6;&#x7C7B;&#x578B;&#x68C0;&#x67E5;" class="headerlink" title="&#x8FD0;&#x884C;&#x65F6;&#x7C7B;&#x578B;&#x68C0;&#x67E5;"></a>&#x8FD0;&#x884C;&#x65F6;&#x7C7B;&#x578B;&#x68C0;&#x67E5;</h4><p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs plain">CALL	runtime&#xB7;check(SB)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p><code>check</code> &#x51FD;&#x6570;&#x4E3B;&#x8981;&#x662F;&#x8FDB;&#x884C;&#x8FD0;&#x884C;&#x65F6;&#x7C7B;&#x578B;&#x68C0;&#x67E5;, &#x6E90;&#x7801;&#x5728; <code>src/runtime/runtime1.go</code> &#x4E2D;&#xFF0C;&#x53EF;&#x81EA;&#x884C;&#x53C2;&#x9605;.</p>
+<h4 id="&#x8C03;&#x5EA6;&#x5668;&#x76F8;&#x5173;"><a href="#&#x8C03;&#x5EA6;&#x5668;&#x76F8;&#x5173;" class="headerlink" title="&#x8C03;&#x5EA6;&#x5668;&#x76F8;&#x5173;"></a>&#x8C03;&#x5EA6;&#x5668;&#x76F8;&#x5173;</h4><p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs plain">CALL	runtime&#xB7;schedinit(SB)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p><code>schedinit</code> &#x51FD;&#x6570;&#x8FDB;&#x884C;&#x8FD0;&#x884C;&#x65F6;&#x7EC4;&#x4EF6;&#x7684;&#x521D;&#x59CB;&#x5316;&#x5DE5;&#x4F5C;&#xFF0C;&#x4E3B;&#x8981;&#x5305;&#x62EC;&#xFF1A;</p>
+<ul>
+<li>&#x6808;&#x3001;&#x5185;&#x5B58;&#x5206;&#x914D;&#x5668;&#x3001;&#x8C03;&#x5EA6;&#x5668;&#x76F8;&#x5173;&#x521D;&#x59CB;&#x5316;</li>
+<li>&#x9650;&#x5236;&#x6700;&#x5927;&#x7CFB;&#x7EDF;&#x7EBF;&#x7A0B;&#x6570;&#x91CF;</li>
+<li>&#x521D;&#x59CB;&#x5316;&#x6267;&#x884C;&#x6808;</li>
+<li>&#x521D;&#x59CB;&#x5316;&#x5185;&#x5B58;&#x5206;&#x914D;&#x5668;</li>
+<li>&#x521D;&#x59CB;&#x5316;&#x5F53;&#x524D;&#x7CFB;&#x7EDF;&#x7EBF;&#x7A0B;</li>
+<li>&#x5783;&#x573E;&#x56DE;&#x6536;&#x5668;&#x521D;&#x59CB;&#x5316;</li>
+</ul>
+<p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs plain">(...)<br><br>// create a new goroutine to start program<br>MOVQ	$runtime&#xB7;mainPC(SB), AX		// entry<br>PUSHQ	AX<br>PUSHQ	$0			// arg size<br>CALL	runtime&#xB7;newproc(SB)<br>POPQ	AX<br>POPQ	AX<br><br>// start this M<br>CALL	runtime&#xB7;mstart(SB)<br><br>CALL	runtime&#xB7;abort(SB)	// mstart should never return<br>RET<br>(...)<br></code></pre></td></tr></tbody></table></figure><p></p>
+<p>&#x8C03;&#x7528; <code>runtime&#xB7;newproc</code> &#x51FD;&#x6570;&#x521B;&#x5EFA;&#x4E00;&#x4E2A;&#x65B0;&#x7684; goroutine &#x6765;&#x542F;&#x52A8; <code>runtime.mainPC</code> &#x6240;&#x6307;&#x5411;&#x7684;&#x51FD;&#x6570; <code>runtime.main</code>.</p>
+<p><code>runtime&#xB7;mstart</code> &#x542F;&#x52A8;&#x8C03;&#x5EA6;&#x5668;&#x7684;&#x5FAA;&#x73AF;&#x8C03;&#x5EA6;&#x5E76;&#x5BF9;&#x521A;&#x521A;&#x521B;&#x5EFA;&#x7684; goroutine &#x8FDB;&#x884C;&#x8C03;&#x5EA6;.</p>
+<h3 id="runtime-main"><a href="#runtime-main" class="headerlink" title="runtime.main"></a>runtime.main</h3><p><code>runtime.main</code> &#x51FD;&#x6570;&#x4E2D;&#x4F1A;&#x52A0;&#x8F7D;&#x7528;&#x6237;main&#x51FD;&#x6570; <code>main.main</code>, &#x5E76;&#x5728;&#x540C;&#x4E00;&#x4E2A; goroutine &#x4E0A;&#x6267;&#x884C;:</p>
+<p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><code class="hljs plain">func main() {<br>    g := getg()<br><br>    ...<br>    // &#x6267;&#x884C;&#x6808;&#x6700;&#x5927;&#x9650;&#x5236;&#xFF1A;1GB&#xFF08;64&#x4F4D;&#x7CFB;&#x7EDF;&#xFF09;&#x6216;&#x8005; 250MB&#xFF08;32&#x4F4D;&#x7CFB;&#x7EDF;&#xFF09;<br>    if sys.PtrSize == 8 {<br>        maxstacksize = 1000000000<br>    } else {<br>        maxstacksize = 250000000<br>    }<br>    ...<br><br>    // &#x542F;&#x52A8;&#x7CFB;&#x7EDF;&#x540E;&#x53F0;&#x76D1;&#x63A7;&#xFF08;&#x5B9A;&#x671F;&#x5783;&#x573E;&#x56DE;&#x6536;&#x3001;&#x62A2;&#x5360;&#x8C03;&#x5EA6;&#x7B49;&#x7B49;&#xFF09;<br>    if GOARCH != &quot;wasm&quot; { // no threads on wasm yet, so no sysmon<br>        systemstack(func() {<br>            newm(sysmon, nil)<br>        })<br>    }<br>    ...<br><br>    // &#x521D;&#x59CB;&#x5316;init <br>    // initTask &#x7684;&#x5B9E;&#x73B0;&#x89C1; src/cmd/compile/internal/gc/init.go &#x4E2D; fninit<br>    doInit(&amp;main_inittask)<br><br>    // &#x542F;&#x52A8;GC&#x6E05;&#x626B;&#x5DE5;&#x4F5C;<br>    gcenable()<br>    ...<br><br>    // &#x6267;&#x884C;&#x7528;&#x6237; main &#x5305;&#x4E2D;&#x7684; main &#x51FD;&#x6570;<br>    fn := main_main // make an indirect call, as the linker doesn&apos;t know the address of the main package when laying down the runtime<br>    fn()<br><br>    ...<br>    // &#x76F4;&#x63A5;&#x9000;&#x51FA;<br>    exit(0)<br>    ...<br>}<br></code></pre></td></tr></tbody></table></figure><p></p>
+<h3 id="&#x6D41;&#x7A0B;&#x603B;&#x7ED3;"><a href="#&#x6D41;&#x7A0B;&#x603B;&#x7ED3;" class="headerlink" title="&#x6D41;&#x7A0B;&#x603B;&#x7ED3;"></a>&#x6D41;&#x7A0B;&#x603B;&#x7ED3;</h3><p></p><figure class="highlight plain hljs"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs plain">_rt0_amd64_darwin -&gt; _rt0_amd64 -&gt; runtime&#xB7;rt0_go -&gt; runtime.main  -&gt; exit(0)<br>                                        &#x2193;                   &#x2193;<br>                                    runtime&#xB7;check         doInit<br>                                        &#x2193;                   &#x2193;<br>                                    runtime&#xB7;args          gcenable<br>                                        &#x2193;                   &#x2193;<br>                                    runtime&#xB7;osinit        main.main<br>                                        &#x2193;<br>                                    runtime&#xB7;schedinit<br>                                        &#x2193;<br>                                    runtime&#xB7;newproc<br>                                        &#x2193;<br>                                    runtime&#xB7;mstart<br></code></pre></td></tr></tbody></table></figure><p></p>
+</body></html>
+    
+    </div>
+    
+    <div class="columns is-variable is-1 is-multiline is-mobile">
+    
+        <span class="column is-narrow"><a class="tag is-light article-tag" href="/tags/golang/">#golang</a></span>
+    
+    </div>
+    
+    
+    <div class="columns is-mobile is-multiline article-nav">
+        <span class="column is-12-mobile is-half-desktop is-hidden-mobile article-nav-prev">
+            
+        </span>
+        <span class="column is-12-mobile is-half-desktop  article-nav-next">
+            
+            <a href="/202007/hello-world.html">Hello OverStack.Me</a>
+            
+        </span>
+    </div>
+    
+</article>
+
+
+
+
+<div class="comments">
+    <h3 class="title is-4">评论</h3>
+    
+<div id="gitalk-container"></div>
+<link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
+<script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+<script>
+	var gitalk = new Gitalk({
+		clientID: 'e96713ce759bbfd60652',
+		clientSecret: '6fce39f37102bcca443ecb58f1f264ffdadc1932',
+		repo: 'overstackme.github.io',
+		owner: 'overstackme',
+		admin: ['overstackme'],
+		id: '202007/go-program-startup-process.html',      // Ensure uniqueness and length less than 50
+		distractionFreeMode: false  // Facebook-like distraction free mode
+	})
+
+	gitalk.render('gitalk-container')
+</script>
+
+</div>
+
+    </div>
+</section>
+    <footer class="footer">
+    <div class="container">
+        <div class="columns content">
+            <div class="column is-narrow has-text-centered">
+                &copy; 2020 OverStack.Me&nbsp;
+                Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> & <a
+                        href="http://github.com/ppoffice/hexo-theme-minos">Minos</a>
+            </div>
+            <div class="column is-hidden-mobile"></div>
+
+            
+            <div class="column is-narrow">
+                <div class="columns is-mobile is-multiline is-centered">
+                
+                    
+                <a class="column is-narrow has-text-black" title="GitHub" href="https://github.com/overstackme" target="_blank" rel="noopener">
+                    
+                    GitHub
+                    
+                </a>
+                
+                </div>
+            </div>
+            
+            
+        </div>
+        <script>
+            var _hmt = _hmt || [];
+            (function() {
+                var hm = document.createElement("script");
+                hm.src = "https://hm.baidu.com/hm.js?fd4be0456633b9664b29b8727aae6e61";
+                var s = document.getElementsByTagName("script")[0];
+                s.parentNode.insertBefore(hm, s);
+            })();
+        </script>
+    </div>
+</footer>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment-with-locales.min.js"></script>
+
+<!-- test if the browser is outdated -->
+<div id="outdated">
+    <h6>Your browser is out-of-date!</h6>
+    <p>Update your browser to view this website correctly. <a id="btnUpdateBrowser" href="http://outdatedbrowser.com/" target="_blank" rel="noopener">Update my browser now </a></p>
+    <p class="last"><a href="#" id="btnCloseUpdateBrowser" title="Close">&times;</a></p>
+</div>
+<script src="//cdnjs.cloudflare.com/ajax/libs/outdated-browser/1.1.5/outdatedbrowser.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // plugin function, place inside DOM ready function
+        outdatedBrowser({
+            bgColor: '#f25648',
+            color: '#ffffff',
+            lowerThan: 'flex'
+        })
+    });
+</script>
+
+<script>
+    window.FontAwesomeConfig = {
+        searchPseudoElements: true
+    }
+    moment.locale("zh-CN");
+</script>
+
+
+    
+    
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+<script>
+    MathJax.Hub.Config({
+        "HTML-CSS": {
+            matchFontHeight: false
+        },
+        SVG: {
+            matchFontHeight: false
+        },
+        CommonHTML: {
+            matchFontHeight: false
+        },
+        tex2jax: {
+            inlineMath: [
+                ['$','$'],
+                ['\\(','\\)']
+            ]
+        }
+    });
+</script>
+
+    
+    
+    
+    
+<script src="//cdnjs.cloudflare.com/ajax/libs/lightgallery/1.6.8/js/lightgallery-all.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/justifiedGallery/3.6.5/js/jquery.justifiedGallery.min.js"></script>
+<script>
+    (function ($) {
+        $(document).ready(function () {
+            if (typeof($.fn.lightGallery) === 'function') {
+                $('.article.gallery').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof($.fn.justifiedGallery) === 'function') {
+                $('.justified-gallery').justifiedGallery();
+            }
+        });
+    })(jQuery);
+</script>
+
+    
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script>
+    <style>
+        .hljs {
+            position: relative;
+        }
+
+        .hljs .clipboard-btn {
+            float: right;
+            color: #9a9a9a;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .hljs .clipboard-btn:hover {
+          color: #8a8a8a;
+        }
+
+        .hljs > .clipboard-btn {
+            display: none;
+            position: absolute;
+            right: 4px;
+            top: 4px;
+        }
+
+        .hljs:hover > .clipboard-btn {
+            display: inline;
+        }
+
+        .hljs > figcaption > .clipboard-btn {
+            margin-right: 4px;
+        }
+    </style>
+    <script>
+      $(document).ready(function () {
+        $('figure.hljs').each(function(i, figure) {
+          var codeId = 'code-' + i;
+          var code = figure.querySelector('.code');
+          var copyButton = $('<button>Copy <i class="far fa-clipboard"></i></button>');
+          code.id = codeId;
+          copyButton.addClass('clipboard-btn');
+          copyButton.attr('data-clipboard-target-id', codeId);
+
+          var figcaption = figure.querySelector('figcaption');
+
+          if (figcaption) {
+            figcaption.append(copyButton[0]);
+          } else {
+            figure.prepend(copyButton[0]);
+          }
+        })
+
+        var clipboard = new ClipboardJS('.clipboard-btn', {
+          target: function(trigger) {
+            return document.getElementById(trigger.getAttribute('data-clipboard-target-id'));
+          }
+        });
+        clipboard.on('success', function(e) {
+          e.clearSelection();
+        })
+      })
+    </script>
+
+    
+    
+
+    
+
+
+
+<script src="/js/script.js"></script>
+
+
+    
+    <div class="searchbox ins-search">
+    <div class="searchbox-mask"></div>
+    <div class="searchbox-container ins-search-container">
+        <div class="searchbox-input-wrapper">
+            <input type="text" class="searchbox-input ins-search-input" placeholder="站内搜索" />
+            <span class="searchbox-close ins-close ins-selectable"><i class="fa fa-times-circle"></i></span>
+        </div>
+        <div class="searchbox-result-wrapper ins-section-wrapper">
+            <div class="ins-section-container"></div>
+        </div>
+    </div>
+</div>
+<script>
+    (function (window) {
+        var INSIGHT_CONFIG = {
+            TRANSLATION: {
+                POSTS: '文章',
+                PAGES: '页面',
+                CATEGORIES: '分类',
+                TAGS: '标签',
+                UNTITLED: '(无标题)',
+            },
+            CONTENT_URL: '/content.json',
+        };
+        window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+    })(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+    
+</body>
+</html>
